@@ -1,0 +1,6 @@
+{'a': {'value': 'Hello world', 'inRequest': 'true', 'minOccurs': '0', 'maxOccurs': '1', 'DataType': 'string'}, 'pause': {'value': '2', 'inRequest': 'true', 'minOccurs': '0', 'maxOccurs': '1', 'DataType': 'float'}, 'b': {'minOccurs': '0', 'maxOccurs': '1', 'mimeType': 'text/xml', 'encoding': 'utf-8', 'inRequest': 'false', 'value': 'NULL'}, 'c': {'minOccurs': '0', 'maxOccurs': '1', 'CRS': 'urn:ogc:def:crs:EPSG:6.6:4326', 'inRequest': 'false', 'value': 'NULL'}}
+{'a': {'value': 'Hello world', 'inRequest': 'true', 'minOccurs': '0', 'maxOccurs': '1', 'DataType': 'string'}, 'pause': {'value': '2', 'inRequest': 'true', 'minOccurs': '0', 'maxOccurs': '1', 'DataType': 'float'}, 'b': {'minOccurs': '0', 'maxOccurs': '1', 'mimeType': 'text/xml', 'encoding': 'utf-8', 'inRequest': 'false', 'value': 'NULL'}, 'c': {'minOccurs': '0', 'maxOccurs': '1', 'CRS': 'urn:ogc:def:crs:EPSG:6.6:4326', 'inRequest': 'false', 'value': 'NULL'}}
+{'a': {'transmissionMode': 'value', 'inRequest': 'true', 'DataType': 'string', 'value': 'Hello world'}, 'b': {'mimeType': 'text/xml', 'encoding': 'utf-8', 'inRequest': 'false', 'value': 'Empty'}, 'c': {'CRS': 'urn:ogc:def:crs:EPSG:6.6:4326', 'inRequest': 'false', 'value': 'NULL'}}
+# 106 +++++++++++++++++++++++++++ zoo_service_loader.c 5791 
+This worker can now exit!
+# 106 +++++++++++++++++++++++++++ zoo_service_loader.c 5793 
