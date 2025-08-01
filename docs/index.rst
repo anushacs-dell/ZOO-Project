@@ -14,6 +14,7 @@ This is the `ZOO-Project <http://zoo-project.org>`__ Open WPS Platform official 
    :maxdepth: 2
 
    intro
+   keycloack
    install/index
    kernel/index
    services/index
