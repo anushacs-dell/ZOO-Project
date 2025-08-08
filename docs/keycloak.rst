@@ -138,8 +138,8 @@ All the URLs in this webapp-zooproject creation should be your local IP address,
    :align: center
 
 - For each client:
-  - After creation, go to the **Credentials** tab.
-  - Copy and store the **Client Secret** for each client.
+- After creation, go to the **Credentials** tab.
+- Copy and store the **Client Secret** for each client.
 
 .. image:: _static/webapp-secret.png
    :alt: Copy client secret
