@@ -120,7 +120,7 @@ After logging in, follow the steps below to configure Keycloak for the ZOO-Proje
    :width: 600px
    :align: center
 
-All the URLs in this webapp-zooproject creation should be your local IP address, and make sure to keep the validate URLs input as /*.
+All the URLs in this webapp-zooproject creation should be your local IP address, and make sure to keep the validate redirect URLs input as /*
 
 .. image:: _static/webapp-urls.png
    :alt: webapp-zooproject URLs Setup
