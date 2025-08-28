@@ -2,18 +2,19 @@ version: '3'
 services:
   zookernel:
     platform: linux/amd64
-    image: zooproject/zoo-project:latest
+    image: zooproject/zoo-project-default:latest
     #build: .
     networks:
-      front-tier:
-        ipv4_address: 172.16.238.10
+      front-tier-1:
+        ipv4_address: 172.15.232.10
     ports:
       - "80:80"
+      - "8000:8000"
     volumes:
-      # Uncomment below to allow changes to the main.cfg and oas.cfg files to be reflected in the container
       - ./docker/main.cfg:/usr/lib/cgi-bin/main.cfg
       - ./docker/oas.cfg:/usr/lib/cgi-bin/oas.cfg
-      # - ./docker/default.conf:/etc/apache2/sites-available/000-default.conf  # TODO: remove (cesarbenjamindotnet)
+      - ./docker/nuxt-client/default.conf:/etc/apache2/sites-available/000-default.conf
+      - ./docker/nuxt-client/nuxtclient.conf:/etc/apache2/sites-available/000-nuxtclient.conf
       # Uncomment below to expose a process named org.n52.javaps.test.EchoProcess
       - ./zoo-project/zoo-services/echo-py/cgi-env:/usr/lib/cgi-bin/org/n52/javaps/test
       - ./zoo-project/zoo-services/echo-py/cgi-env/echo_service.py:/usr/lib/cgi-bin/echo_service.py
@@ -21,11 +22,7 @@ services:
       - ./zoo-project/zoo-services/utils/open-api/server/publish.py:/usr/lib/cgi-bin/publish.py
       - ./zoo-project/zoo-services/utils/open-api/server/subscriber.py:/usr/lib/cgi-bin/subscriber.py
       - ./docker/mapserver.conf:/mapserver/etc/mapserver.conf
-      # - ./docker/.htaccess:/var/www/html/.htaccess  # TODO: remove (cesarbenjamindotnet)
-      # Uncomment below to allow changes to the nginx-default.conf file to be reflected in the container
-      # - ./docker/nginx-default.conf:/etc/nginx/sites-available/default
-      # the next line mounts a modified version of TrainRegression.zcfg because the generated one on build is not working
-      - ./docker/TrainRegression.zcfg:/usr/lib/cgi-bin/OTB/TrainRegression.zcfg
+      - ./docker/.htaccess:/var/www/html/.htaccess
       - ./zoo-project/zoo-services/utils/open-api/templates/index.html:/var/www/index.html
       - ./zoo-project/zoo-services/utils/open-api/static:/var/www/html/static
       - ./docker/com:/usr/com/zoo-project
@@ -37,12 +34,15 @@ services:
     environment:
       - ZOO_REDIS_HOST=redis
       - MAPSERVER_CONFIG_FILE=/mapserver/etc/mapserver.conf
+    extra_hosts:
+      - "localhost:172.16.232.10"
+      - "keycloak:192.168.1.6"
   zoofpm:
     platform: linux/amd64
-    image: zooproject/zoo-project:latest
+    image: zooproject/zoo-project-default:latest
     networks:
-      front-tier:
-        ipv4_address: 172.16.238.11
+      front-tier-1:
+        ipv4_address: 172.15.232.11
     volumes:
       - ./docker/main.cfg:/usr/lib/cgi-bin/main.cfg
       - ./docker/oas.cfg:/usr/lib/cgi-bin/oas.cfg
@@ -63,19 +63,19 @@ services:
     command: [ "/startUp.sh" ]
     extra_hosts:
       #- "localhost:zookernel"
-      - "localhost:172.16.238.10"
+      - "localhost:172.16.232.10"
   websocketd:
     #platform: linux/amd64
     build:
       context: .
       dockerfile: docker/websocketd/Dockerfile
     networks:
-      front-tier:
-        ipv4_address: 172.16.238.12
+      front-tier-1:
+        ipv4_address: 172.15.232.12
     depends_on:
       - redis
     ports:
-      - 8888:8888
+      - 8885:8888
     environment:
       - ZOO_REDIS_HOST=redis
     volumes:
@@ -86,8 +86,8 @@ services:
     image: postgres:12.10-alpine
     restart: always
     networks:
-      front-tier:
-        ipv4_address: 172.16.238.13
+      front-tier-1:
+        ipv4_address: 172.15.232.13
     environment:
       POSTGRES_USER: zoo
       POSTGRES_PASSWORD: zoo
@@ -100,11 +100,11 @@ services:
     depends_on:
       - rabbitmq
   pgbouncer:
-    #platform: linux/amd64
+    platform: linux/amd64
     image: edoburu/pgbouncer:1.12.0
     networks:
-      front-tier:
-        ipv4_address: 172.16.238.14
+      front-tier-1:
+        ipv4_address: 172.15.232.14
     environment:
       DATABASE_URL: "postgres://zoo:zoo@pg/zoo"
       MAX_CLIENT_CONN: 1000
@@ -116,19 +116,33 @@ services:
   redis:
     image: redis:6.0.9
     networks:
-      front-tier:
-        ipv4_address: 172.16.238.15
+      front-tier-1:
+        ipv4_address: 172.15.232.15
   rabbitmq:
     image: rabbitmq:3.8.9-management-alpine
     networks:
-      front-tier:
-        ipv4_address: 172.16.238.16
+      front-tier-1:
+        ipv4_address: 172.15.232.16
     volumes:
       - ./docker/definitions.json:/etc/rabbitmq/definitions.json
 
+  nuxtclient:
+    platform: linux/amd64
+    image: zooproject/nuxt-client-test:latest
+    build:
+      context: .
+      dockerfile: docker/nuxt-client/Dockerfile
+    networks:
+      front-tier-1:
+        ipv4_address: 172.15.232.17
+    ports:
+      - "0.0.0.0:3000:3000"
+    env_file:
+      - ./docker/nuxt-client/env_nuxt.sample
+
 networks:
-  front-tier:
+  front-tier-1:
     ipam:
       driver: default
       config:
-        - subnet: "172.16.238.0/24"
+        - subnet: "172.15.232.0/24"
