@@ -44,6 +44,7 @@ services:
       - ./docker/tmp:/tmp/zTmp
       - ./docker/mapserver.conf:/mapserver/etc/mapserver.conf
       - ./docker/com:/usr/com/zoo-project
+      - ./docker/startUp.sh:/startUp.sh
       # Uncomment below to expose a process named org.n52.javaps.test.EchoProcess
       #- ./zoo-project/zoo-services/echo-py/cgi-env:/usr/lib/cgi-bin/org/n52/javaps/test
       - ./zoo-project/zoo-services/echo-py/cgi-env/echo_service.py:/usr/lib/cgi-bin/echo_service.py
@@ -56,7 +57,7 @@ services:
     command: [ "/startUp.sh" ]
   websocketd:
     #platform: linux/amd64
-    build: ./docker/websocketd
+    build: ../docker/websocketd
     depends_on:
       - redis
     ports:
@@ -98,11 +99,11 @@ services:
     image: rabbitmq:3.8.9-management-alpine
     volumes:
       - ./docker/definitions.json:/etc/rabbitmq/definitions.json
-  teamengine:
-    image: zooproject/ets-ogcapi-processes10:latest
-    volumes:
-      - ./docker/ets-ogcapi-processes/test-run-props.xml:/root/test-run-props.xml
-      - ./docker/ets-ogcapi-processes/src1/ets-ogcapi-processes10/src/main/config/teamengine/config.xml:/root/teamengine/config.xml
-      - ./docker/ets-ogcapi-processes/test.sh:/root/test.sh
-    ports:
-      - "8080:8080"
+  # teamengine:
+  #   image: zooproject/ets-ogcapi-processes10:latest
+  #   volumes:
+  #     - ./docker/ets-ogcapi-processes/test-run-props.xml:/root/test-run-props.xml
+  #     - ./docker/ets-ogcapi-processes/src1/ets-ogcapi-processes10/src/main/config/teamengine/config.xml:/root/teamengine/config.xml
+  #     - ./docker/ets-ogcapi-processes/test.sh:/root/test.sh
+  #   ports:
+  #     - "8080:8080"
