@@ -27,23 +27,56 @@
 import os
 import sys
 import redis
-try:
-    data = sys.stdin.read();
-except Exception as e:
-    print(e,file=sys.stderr)
-
-print('Content-Type: text/html')
-print('')
+import json
 from urllib import parse
 
 try:
-    params=parse.parse_qs(os.environ["QUERY_STRING"])
-    r=None
-    if "ZOO_REDIS_HOST" in os.environ:
-        r = redis.Redis(host=os.environ["ZOO_REDIS_HOST"], port=6379, db=0)
-    else:
-        r = redis.Redis(host='redis', port=6379, db=0)
-    r.publish(params["jobid"][0],data)
+    data = sys.stdin.read()
 except Exception as e:
-	print(e)
+    print(e, file=sys.stderr)
+    data = "{}"
+
+print("Content-Type: text/html")
+print("")
+
+try:
+    params = parse.parse_qs(os.environ.get("QUERY_STRING", ""))
+    jobid = params.get("jobid", ["unknown-job"])[0]
+
+    # connect to redis
+    redis_host = os.environ.get("ZOO_REDIS_HOST", "redis")
+    r = redis.Redis(host=redis_host, port=6379, db=0)
+
+    payload = None
+    try:
+        payload = json.loads(data)
+    except Exception:
+        payload = {"raw": data}
+
+
+    payload["jobID"] = jobid
+
+    # detect "final result" (OGC style result document)
+    if any(k in payload for k in ("a", "b", "c")):
+        outputs = {k: payload[k] for k in ("a", "b", "c") if k in payload}
+
+        payload = {
+            "jobID": jobid,
+            "status": "succeeded",
+            "progress": 100,
+            "message": "Completed successfully",
+            "outputs": outputs,
+        }
+
+    # detect error
+    if "error" in payload:
+        payload["status"] = "failed"
+        payload["progress"] = 100
+
+    # publish cleaned JSON
+    r.publish(jobid, json.dumps(payload))
+
+except Exception as e:
+    print("Publish error:", e, file=sys.stderr)
+
 
