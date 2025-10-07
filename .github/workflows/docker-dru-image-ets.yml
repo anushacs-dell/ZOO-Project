@@ -3,12 +3,10 @@ name: Skaffold and OGC ETS for OGC API - Processes - Part 2
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
 
-  build:
+  build-ets-part2-image-run:
 
     runs-on: ubuntu-latest
 
@@ -54,7 +52,7 @@ jobs:
     - name: Run skaffold
       run: |
         hostip=$(host $(hostname) | awk {'print $4'})
-        sed "s#address: localhost#address: ${hostip}#g" -i skaffold.yaml
+        sed "s#address: localhost#address: ${hostip}#g;s#localPort: 8888#localPort: 8821#g" -i skaffold.yaml
         skaffold build
         helm repo add localstack https://helm.localstack.cloud
         helm repo add zoo-project https://zoo-project.github.io/charts/
@@ -68,7 +66,7 @@ jobs:
         done
         i=0
         while [ "$i" == 0 ] ; do
-          if [ "$(kubectl get pods -n eoap-zoo-project | grep "1/1" | wc -l)" == "6" ] ; then
+          if [ "$(kubectl get pods -n eoap-zoo-project | grep "1/1" | wc -l)" == "9" ] ; then
             echo "Pods are all in running state!"
             i=1
           else
@@ -85,9 +83,10 @@ jobs:
       run: |
         hostname
         hostip=$(host $(hostname) | awk {'print $4'})
-        netstat -na | grep "LISTEN "
+        hostport=$(netstat -na | grep "LISTEN " | grep 8080 | awk {'print $4'})
         echo ${hostip}
-        curl http://${hostip}:8080/ogc-api/
+        echo ${hostport}
+        curl http://${hostport}/ogc-api/
         sed "s#localhost#${hostip}#g" -i ./docker/ets-ogcapi-processes/test-run-ogcapi-processes-2.xml
         cat ./docker/ets-ogcapi-processes/test-run-ogcapi-processes-2.xml
         sed "s#localhost#${hostip}#g" -i ./docker/ets-ogcapi-processes/build-ets-part2.sh

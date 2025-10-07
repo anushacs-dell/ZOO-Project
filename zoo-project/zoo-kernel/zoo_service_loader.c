@@ -2447,7 +2447,8 @@ int runRequest(map** inputs) {
   map *request_inputs = *inputs;
 #ifdef IGNORE_METAPATH
   addToMap(request_inputs, "metapath", "");
-#endif  
+#endif
+
   maps *pmsaConfig = NULL;
   char *REQUEST = NULL;
 
@@ -2888,6 +2889,12 @@ int runRequest(map** inputs) {
     }
 
     setMapInMaps(pmsaConfig,"lenv","request_method",cgiRequestMethod);
+    if(strncasecmp(cgiRequestMethod,"HEAD",4)==0){
+      // HEAD request, return only the headers
+      setMapInMaps(pmsaConfig,"lenv","request_method","GET");
+      setMapInMaps(pmsaConfig,"lenv","no-content","true");
+      setMapInMaps(pmsaConfig,"lenv","real_request_method","HEAD");
+    }
 #ifdef DRU_ENABLED
     //
     // Routes to OGC API - Processes - Part 2: Deploy, Replace, Undeploy (DRU)
@@ -3076,7 +3083,6 @@ int runRequest(map** inputs) {
         strstr(pcaCgiQueryString,"/package")!=NULL &&
         strncasecmp(cgiRequestMethod,"GET",3)==0 ) {
       // /processes/{processId}/package
-      zStrdup(strstr(pcaCgiQueryString,"/processes/")+11);
       char* pcaProcessId=(char*) malloc((1+strlen(pcaCgiQueryString)-19)*sizeof(char));
       snprintf(pcaProcessId,strlen(pcaCgiQueryString)-18,"%s",strstr(pcaCgiQueryString,"/processes/")+11);
       if(fetchService(zooRegistry,&pmsaConfig,&s1,request_inputs,conf_dir_,pcaProcessId,localPrintExceptionJ)!=0){
@@ -3127,7 +3133,7 @@ int runRequest(map** inputs) {
         return -1;
       }
     }
-#endif
+#endif // DRU_ENABLED
     map* pmCgiRequestMethod=getMapFromMaps(pmsaConfig,"lenv","request_method");
 
     setRootUrlMap(pmsaConfig);
@@ -3206,7 +3212,7 @@ int runRequest(map** inputs) {
     }
     else if(cgiContentLength==1){
       // - Root url
-      if(strncasecmp(cgiRequestMethod,"GET",3)!=0){
+      if(strncasecmp(pmCgiRequestMethod->value,"GET",3)!=0){
         setMapInMaps(pmsaConfig,"lenv","status_code","405");
         map* pmaError=createMap("code","InvalidMethod");
         const char* pccErr=_("This API does not support the method.");
@@ -3247,6 +3253,7 @@ int runRequest(map** inputs) {
       setMapInMaps(pmsaConfig,"lenv","requestType","desc");
       setMapInMaps(pmsaConfig,"lenv","serviceCnt","0");
       setMapInMaps(pmsaConfig,"lenv","serviceCounter","0");
+      prepareLinksHeader(pmsaConfig,"/processes");
       map* pmTmp=getMap(request_inputs,"limit");
       if(pmTmp!=NULL)
         setMapInMaps(pmsaConfig,"lenv","serviceCntLimit",pmTmp->value);
@@ -3348,6 +3355,7 @@ int runRequest(map** inputs) {
       else if(strcasecmp(pmCgiRequestMethod->value,"get")==0){
         /* - /jobs List (GET) */
         if(strncasecmp(pmCgiRequestMethod->value,"get",3)==0 && strlen(pcaCgiQueryString)<=6){
+          prepareLinksHeader(pmsaConfig,"/jobs");
           if(res!=NULL)
             json_object_put(res);
           res=printFilteredJobList(&pmsaConfig,request_inputs);
@@ -3360,6 +3368,7 @@ int runRequest(map** inputs) {
               if(res!=NULL)
                 json_object_put(res);
               ensureFiltered(&pmsaConfig,"out");
+              prepareLinksHeader(pmsaConfig,"/jobs/{jobID}");
               res=printJobStatus(&pmsaConfig,jobId);
               if(res==NULL)
                 fflush(stdout);
@@ -3414,6 +3423,7 @@ int runRequest(map** inputs) {
                   free(pmsaConfig);
                   return 1;
                 }else{
+                  prepareLinksHeader(pmsaConfig,"/jobs/{jobID}/results");
                   char *Url0=getResultPath(pmsaConfig,jobId);
                   zStatStruct f_status;
                   int s=zStat(Url0, &f_status);
@@ -4163,13 +4173,16 @@ int runRequest(map** inputs) {
            (strstr(pcaCgiQueryString,"/processes/")+11)!=NULL &&
            strlen(strstr(pcaCgiQueryString,"/processes/")+11)>0){
           /* - /processes/{processId}/ */
-          ZOO_DEBUG(pcaCgiQueryString);
+          //ZOO_DEBUG(pcaCgiQueryString);
           json_object *res3=json_object_new_object();
           char *orig = NULL;
           orig = zStrdup (strstr(pcaCgiQueryString,"/processes/")+11);
           if(orig[strlen(orig)-1]=='/')
             orig[strlen(orig)-1]=0;
           setMapInMaps(pmsaConfig,"lenv","requestType","GetCapabilities");
+
+          prepareLinksHeader(pmsaConfig,"/processes/{processID}");
+
           int t=fetchServicesForDescription(NULL, &pmsaConfig, orig,
                                             printGetCapabilitiesForProcessJ,
                                             NULL, (void*) res3, conf_dir_,
@@ -4303,8 +4316,10 @@ int runRequest(map** inputs) {
             free(pcaLink);
           }
         }
-        printf(pmResponseObject->value);
-        printf("\n");
+        if(getMapFromMaps(pmsaConfig,"lenv","no-content")==NULL){
+          printf(pmResponseObject->value);
+          printf("\n");
+        }
         fflush(stdout);
         if(getMapFromMaps(pmsaConfig,"lenv","output_response")!=NULL){
           createStatusFile(pmsaConfig,eres);
@@ -5007,6 +5022,7 @@ int runRequest(map** inputs) {
 #endif
             f0 = freopen (fbkp, "w+", stdout);
             rewind (stdout);
+
 #ifndef WIN32
             fclose (stdin);
 #endif
@@ -5271,6 +5287,7 @@ runAsyncRequest (maps** ppmsConf, map ** ppmLenv, map ** irequest_inputs,json_ob
     //}
   map *uusid=getMap(*ppmLenv,"usid");
   map *schema=getMapFromMaps(conf,"database","schema");
+  map* pmAsyncWorkers=getMapFromMaps(conf,"server","async_worker");
 
   char acHost[256];
   int hostname=gethostname(acHost, sizeof(acHost));
@@ -5278,6 +5295,13 @@ runAsyncRequest (maps** ppmsConf, map ** ppmLenv, map ** irequest_inputs,json_ob
   char *pcIP = inet_ntoa(*((struct in_addr*) host_entry->h_addr_list[0]));
   ZOO_DEBUG(pcIP);
   ZOO_DEBUG(acHost);
+  char* pcaSqlQuery2=(char*)malloc(((2*strlen(schema->value))+
+                                  strlen(pcIP)+strlen(pmAsyncWorkers->value)+
+                                  strlen(SQL_REGISTER_SERVER)+1)*sizeof(char));
+  sprintf(pcaSqlQuery2,SQL_REGISTER_SERVER,schema->value,schema->value,pcIP,pmAsyncWorkers->value);
+  execSql(conf,iSqlCon-1,pcaSqlQuery2);
+  free(pcaSqlQuery2);
+  cleanUpResultSet(conf,iSqlCon-1);
   char* pcaSqlQuery0=(char*)malloc(((2*strlen(schema->value))+
                                 strlen(pcIP)+strlen(uusid->value)+
                                 strlen(SQL_AVAILABLE_SLOT)+129)*sizeof(char));
@@ -5570,6 +5594,7 @@ runAsyncRequest (maps** ppmsConf, map ** ppmLenv, map ** irequest_inputs,json_ob
 #endif
 
             f0 = freopen (fbkp, "w+", stdout);
+            fflush(stdout);
             rewind (stdout);
 
 #ifndef WIN32

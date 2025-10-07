@@ -581,6 +581,8 @@ extern "C" {
    */
   int getDefinitionFromSchemas(maps* pmsConf,const char* pccName,json_object* pjoInput){
     maps* pmsTmp=getMaps(pmsConf,"schemas");
+    if(pmsTmp==NULL)
+      return 0;
     map* pmLength=getMap(pmsTmp->content,"length");
     int iLen=1;
     if(pmLength!=NULL)
@@ -755,14 +757,14 @@ extern "C" {
     }
   }
 
-  /**
+    /**
    * Add additionalParameters property to a json_object
    * @param pmsConf the main configuration maps pointer
-   * @param meta a map pointer to the current metadata informations
+   * @param pmMetaadta a map pointer to the current metadata informations
    * @param doc the json_object pointer to add the property to
    */
-  void printJAdditionalParameters(maps* pmsConf,map* meta,json_object* doc){
-    map* cmeta=meta;
+  void printJAdditionalParameters(maps* pmsConf,map* pmMetaadta,json_object* doc){
+    map* cmeta=pmMetaadta;
     json_object* carr=json_object_new_array();
     int hasElement=-1;
     json_object* jcaps=json_object_new_object();
@@ -806,6 +808,7 @@ extern "C" {
     map* cmeta=meta;
     json_object* carr=json_object_new_array();
     int hasElement=-1;
+    int hasKey=-1;
     int iCnt=0;
     int iLen=1;
     if(cmeta==NULL)
@@ -819,68 +822,121 @@ extern "C" {
       (char*)"title"
     };
     for(;iCnt<iLen;iCnt++){
-      json_object* jcmeta=json_object_new_object();
+      json_object* pjoMeta=json_object_new_object();
       int iCnt1=0;
+      hasKey=-1;
       for(;iCnt1<3;iCnt1++){
+        if(pjoMeta==NULL){
+          pjoMeta=json_object_new_object();
+          hasKey=-1;
+        }
         map* pmValue=getMapArray(meta,apcFields[iCnt1],iCnt);
         if(pmValue!=NULL){
           if(strcasecmp(pmValue->name,"title")==0)
-            json_object_object_add(jcmeta,apcFields[iCnt1],json_object_new_string(_(pmValue->value)));
+            json_object_object_add(pjoMeta,apcFields[iCnt1],json_object_new_string(_(pmValue->value)));
           else
             if(iCnt1==1)
-              json_object_object_add(jcmeta,"value",json_object_new_string(pmValue->value));
+              json_object_object_add(pjoMeta,"value",json_object_new_string(pmValue->value));
             else
-              json_object_object_add(jcmeta,apcFields[iCnt1],json_object_new_string(pmValue->value));
+              json_object_object_add(pjoMeta,apcFields[iCnt1],json_object_new_string(pmValue->value));
           hasElement++;
+          hasKey++;
         }else{
           if(iCnt1==1){
             char* pcaPrefix=(char*)malloc(17*sizeof(char));
             sprintf(pcaPrefix,"role_%d",iCnt);
-            char* pcaLength=(char*)malloc(24*sizeof(char));
-            sprintf(pcaLength,"%s_length",pcaPrefix);
-            map* pmLength=getMap(cmeta,pcaLength);
-            if(pmLength!=NULL){
-              json_object* innerElement=json_object_new_object();
-              int iLength1=atoi(pmLength->value);
-              int iCnt2=0;
-              for(;iCnt2<iLength1;iCnt2++){
-                int iCnt3=0;
-                char* pcaNameValue[2];
-                for(;iCnt3<2;iCnt3++){
-                  char* pcaName=(char*)malloc(20*sizeof(char));
-                  sprintf(pcaName,"%s_%s",pcaPrefix,apcFields[iCnt3]);
-                  map* pmRole=getMapArray(meta,pcaName,iCnt2);
-                  if(pmRole!=NULL){
-                    pcaNameValue[iCnt3]=zStrdup(pmRole->value);
-                    free(pcaName);
+            char* pcaELength=(char*)malloc(25*sizeof(char));
+            sprintf(pcaELength,"%s_elength",pcaPrefix);
+            map* pmELength=getMap(cmeta,pcaELength);
+            int iELength=1;
+            if(pmELength!=NULL){
+              iELength=atoi(pmELength->value);
+            }
+            int iCnt4=0;
+            for(;iCnt4<iELength;iCnt4++){
+              if(pjoMeta==NULL){
+                pjoMeta=json_object_new_object();
+                size_t sLen=json_object_array_length(carr);
+                json_object* pjoPrevious=json_object_array_get_idx(carr,sLen-1);
+                if(pjoPrevious!=NULL){
+                  json_object* pjoRole=NULL;
+                  if(json_object_object_get_ex(pjoPrevious,"role",&pjoRole)!=FALSE){
+                    json_object_object_add(pjoMeta,"role",json_object_new_string(json_object_get_string(pjoRole)));
                   }
                 }
-                if(pcaNameValue[0]!=NULL && pcaNameValue[1]!=NULL){
-                  json_object_object_add(innerElement,pcaNameValue[0],json_object_new_string(pcaNameValue[1]));
-                  hasElement++;
-                }
-                if(pcaNameValue[0]!=NULL)
-                  free(pcaNameValue[0]);
-                if(pcaNameValue[1]!=NULL)
-                  free(pcaNameValue[1]);
-                char* pcaName=(char*)malloc(17*sizeof(char));
-                sprintf(pcaName,"%s_title",pcaPrefix);
-                map* pmRole=getMapArray(meta,pcaName,iCnt2);
-                if(pmRole!=NULL)
-                  json_object_object_add(innerElement,apcFields[2],json_object_new_string(pmRole->value));
-                free(pcaName);
               }
-              json_object_object_add(jcmeta,"value",innerElement);
+              if(iCnt4>0){
+                char* pcaTmp=zStrdup(pcaPrefix);
+                if(iCnt4==1){
+                  pcaPrefix=(char*)realloc(pcaPrefix,(12+strlen(pcaTmp))*sizeof(char));
+                  sprintf(pcaPrefix,"%s_%d",pcaTmp,iCnt4);
+                }else
+                  sprintf(pcaPrefix,"%s_%d",pcaTmp,iCnt4);
+                free(pcaTmp);
+              }
+              char* pcaLength=(char*)malloc((9+strlen(pcaPrefix))*sizeof(char));
+              sprintf(pcaLength,"%s_length",pcaPrefix);
+              map* pmLength=getMap(cmeta,pcaLength);
+              free(pcaLength);
+              if(pmLength!=NULL){
+                json_object* innerElement=json_object_new_object();
+                int iLength1=atoi(pmLength->value);
+                int iCnt2=0;
+                for(;iCnt2<iLength1;iCnt2++){
+                  int iCnt3=0;
+                  char* pcaNameValue[2];
+                  for(;iCnt3<2;iCnt3++){
+                    char* pcaName=(char*)malloc(20*sizeof(char));
+                    sprintf(pcaName,"%s_%s",pcaPrefix,apcFields[iCnt3]);
+                    map* pmRole=getMapArray(meta,pcaName,iCnt2);
+                    if(pmRole!=NULL){
+                      pcaNameValue[iCnt3]=zStrdup(pmRole->value);
+                      free(pcaName);
+                    }
+                  }
+                  if(pcaNameValue[0]!=NULL && pcaNameValue[1]!=NULL){
+                    if(pcaNameValue[1][0]=='{' || pcaNameValue[1][0]=='['){
+                      json_object* pjoTmp=parseJson(pmsConf,pcaNameValue[1]);
+                      if(pjoTmp!=NULL)
+                        json_object_object_add(innerElement,pcaNameValue[0],pjoTmp);
+                    }
+                    else
+                      json_object_object_add(innerElement,pcaNameValue[0],json_object_new_string(pcaNameValue[1]));
+                    hasElement++;
+                  }
+                  if(pcaNameValue[0]!=NULL)
+                    free(pcaNameValue[0]);
+                  if(pcaNameValue[1]!=NULL)
+                    free(pcaNameValue[1]);
+                  char* pcaName=(char*)malloc(17*sizeof(char));
+                  sprintf(pcaName,"%s_title",pcaPrefix);
+                  map* pmRole=getMapArray(meta,pcaName,iCnt2);
+                  if(pmRole!=NULL){
+                    json_object_object_add(innerElement,apcFields[2],json_object_new_string(pmRole->value));
+                  }
+                  free(pcaName);
+                }
+                json_object_object_add(pjoMeta,"value",innerElement);
+#if JSON_C_MINOR_VERSION >= 13
+                json_object* pjoMetaTmp=NULL;
+                json_object_deep_copy(pjoMeta,&pjoMetaTmp,NULL);
+                json_object_array_add(carr,pjoMetaTmp);
+                json_object_put(pjoMeta);
+#endif
+                pjoMeta=NULL;
+                hasKey++;
+              }
             }
             free(pcaPrefix);
-            free(pcaLength);
           }
         }
       }
-      json_object_array_add(carr,jcmeta);
+      if(pjoMeta!=NULL && hasKey>=0)
+        json_object_array_add(carr,pjoMeta);
     }
-    if(hasElement>=0)
+    if(hasElement>=0){
       json_object_object_add(doc,"metadata",carr);
+    }
     else
       json_object_put(carr);
   }
@@ -984,6 +1040,7 @@ extern "C" {
               json_object* prop4=json_object_new_object();
               json_object_object_add(prop4,"oneOf",pjoSchema);
               json_object_object_add(pjoInput,"schema",prop4);
+              json_object_object_add(pjoInput,"raw_schema1",json_object_new_string("true"));
               json_object_put(pjoProp0);
             }
 
@@ -996,6 +1053,24 @@ extern "C" {
           }
         }
       }
+#if JSON_C_MINOR_VERSION >= 13
+      map* pmUseRawSchema=getMapFromMaps(pmsConf,"openapi","cwl2ogc_schema");
+      map* pmRawSchema=getMap(peInput->content,"raw_schema");
+      if((pmUseRawSchema==NULL || strcasecmp(pmUseRawSchema->value,"false")==0) && pmRawSchema!=NULL){
+        if(pmRawSchema->value[0]=='{' || pmRawSchema->value[0]=='['){
+          json_object* pjoRawSchema=parseJson(pmsConf,pmRawSchema->value);
+          // If there is a schema definition already, rename it to original-schema
+          json_object* pjoSchema=NULL;
+          if(json_object_object_get_ex(pjoInput,"schema",&pjoSchema)!=FALSE){
+            json_object* pjoSchema2=NULL;
+            json_object_deep_copy(pjoSchema,&pjoSchema2,NULL);
+            json_object_object_add(pjoInput,"original-schema",pjoSchema2);
+            json_object_object_del(pjoInput,"schema");
+          }
+          json_object_object_add(pjoInput,"schema",pjoRawSchema);
+        }
+      }
+#endif
       printJMetadata(pmsConf,peInput->metadata,pjoInput);
       printJAdditionalParameters(pmsConf,peInput->additional_parameters,pjoInput);
       json_object_object_add(pjoInputs,peInput->name,pjoInput);
@@ -1406,7 +1481,7 @@ extern "C" {
   }
 
   /**
-   * Add a http reques to the queue
+   * Add a http request to the queue
    *
    * @param ppmsConf the maps containing the settings of the main.cfg file
    * @param pccValue the URL to fetch
@@ -1443,6 +1518,25 @@ extern "C" {
     }
   }
 
+  /**
+   * Parse all keys in a json object except value, href and format
+   * 
+   * @param req json_object pointing to the input/output
+   * @param output the maps to set current json structure
+   */
+  void parseAllKeys(json_object* req,maps* output){
+    json_object_object_foreach(req, key, val) {
+      if(strcmp(key,"value")!=0 && strcmp(key,"href")!=0 && strcmp(key,"format")!=0){
+        enum json_type type = json_object_get_type(val);
+        if(type!=json_type_object && type!=json_type_array){
+          if(output->content==NULL)
+            output->content=createMap(key,json_object_get_string(val));
+          else
+            addToMap(output->content,key,json_object_get_string(val));
+        }
+      }
+    }
+  }
   /**
    * Parse a nested process json object
    *
@@ -1544,6 +1638,17 @@ extern "C" {
       checkCorrespondingJFields(pmsConf,json_cinput,output);
     }
     checkCorrespondingJFields(pmsConf,req,output);
+    json_object_object_foreach(req, key, val) {
+      if(strcmp(key,"value")!=0 && strcmp(key,"href")!=0 && strcmp(key,"format")!=0){
+        enum json_type type = json_object_get_type(val);
+        if(type!=json_type_object && type!=json_type_array){
+          if(output->content==NULL)
+            output->content=createMap(key,json_object_get_string(val));
+          else
+            addToMap(output->content,key,json_object_get_string(val));
+        }
+      }
+    }
   }
 
   /**
@@ -2693,8 +2798,7 @@ extern "C" {
                       outputSingleJsonComplexRes(conf,resu,res1,pjoRes3,tmpMap->value,len);
                     }
                     else{
-                      if(tmpMap!=NULL)
-                        json_object_object_add(res1,"value",json_object_new_string(tmpMap->value));
+                      outputSingleJsonLiteralData(conf,resu,res1,"value",tmpMap->value);
                     }
                   }
                 }
@@ -2783,7 +2887,7 @@ extern "C" {
               if(((tmpMap=getMap(resu->content,"value"))!=NULL)){
                 if(eres==NULL)
                   eres=json_object_new_object();
-                json_object_object_add(eres,resu->name,json_object_new_string(tmpMap->value));
+                outputSingleJsonLiteralData(conf,resu,eres,resu->name,tmpMap->value);
               }
             }
           }
@@ -2825,6 +2929,37 @@ extern "C" {
       }
       return eres;
     }
+  }
+
+  /**
+   * Append required literal data output
+   * 
+   * @param pmsConf maps pointer to the main configuration maps
+   * @param pmsResult maps pointer to the output
+   * @param pjoRes json_object pointer to which the field should be added
+   * @param pccFieldName the field name to be added
+   * @param pcValue char pointer to the value
+   */
+  void outputSingleJsonLiteralData(maps* pmsConf,maps* pmsResult,json_object* pjoRes,const char* pccFieldName,char* pcValue){
+    map* pmType=getMap(pmsResult->content,"dataType");
+    if(pmType!=NULL){
+      if(strncasecmp(pmType->value,"integer",7)==0){
+        json_object_object_add(pjoRes,pccFieldName,json_object_new_int(atoi(pcValue)));
+      }else if(strncasecmp(pmType->value,"float",5)==0 ||
+          strncasecmp(pmType->value,"double",6)==0 ||
+          strncasecmp(pmType->value,"decimal",7)==0){
+        json_object_object_add(pjoRes,pccFieldName,json_object_new_double(atof(pcValue)));
+      }else if(strncasecmp(pmType->value,"boolean",7)==0){
+        if(strncasecmp(pcValue,"true",4)==0 ||
+            strcmp(pcValue,"1")==0)
+          json_object_object_add(pjoRes,pccFieldName,json_object_new_boolean(1));
+        else
+          json_object_object_add(pjoRes,pccFieldName,json_object_new_boolean(0));
+      }else
+        json_object_object_add(pjoRes,pccFieldName,json_object_new_string(pcValue));
+    }
+    else
+      json_object_object_add(pjoRes,pccFieldName,json_object_new_string(pcValue));
   }
 
   /**
@@ -3483,7 +3618,7 @@ extern "C" {
       json_object_object_add(pjoRes4,"name",json_object_new_string(tmpMap->value));
       tmpMap=getMapFromMaps(pmsConf,"openapi","license_url");
       if(tmpMap!=NULL){
-        json_object_object_add(pjoRes4,"ucrl",json_object_new_string(tmpMap->value));
+        json_object_object_add(pjoRes4,"url",json_object_new_string(tmpMap->value));
       }
     }
     json_object_object_add(pjoRes1,"license",pjoRes4);
@@ -3755,8 +3890,7 @@ extern "C" {
   void produceOperationId(maps* pmsConf,maps* pmsContent,int iIndex,json_object* pjoRes){
     map* pmMethod=getMapArray(pmsContent->content,"method",iIndex);
     if(pmMethod!=NULL){
-      char *pcaOperationId =
-	(char*) malloc((strlen(pmsContent->name)+
+      char *pcaOperationId = (char*) malloc((strlen(pmsContent->name)+
 			strlen(pmMethod->value)+
 			2)*sizeof(char));
       char* pcaTmp=zStrdup(pmsContent->name);
@@ -3838,7 +3972,6 @@ extern "C" {
       while (tmps != NULL){
         pmsTmp=getMaps(pmsConf,tmps+1);
         json_object *method=json_object_new_object();
-        map* pmName=getMap(pmsTmp->content,"pname");
         if(pmsTmp!=NULL){
           if(getMap(pmsTmp->content,"length")==NULL)
             addToMap(pmsTmp->content,"length","1");
@@ -3847,6 +3980,7 @@ extern "C" {
             json_object *methodc=json_object_new_object();
             map* cMap=getMapArray(pmsTmp->content,"method",i);
             map* vMap=getMapArray(pmsTmp->content,"title",i);
+            map* pmName=getMapArray(pmsTmp->content,"pname",i);
             if(vMap!=NULL)
               json_object_object_add(methodc,"summary",json_object_new_string(_(vMap->value)));
             vMap=getMapArray(pmsTmp->content,"secured",i);
@@ -3879,8 +4013,9 @@ extern "C" {
                 json_object_object_add(methodc,"operationId",json_object_new_string(pcaOperationId));
                 free(pcaOperationId);
               }
-              else
+              else{
                 produceOperationId(pmsConf,pmsTmp,i,methodc);
+              }
             }
             json_object *responses=json_object_new_object();
             json_object *pjoaResponse=json_object_new_object();
@@ -4081,12 +4216,12 @@ extern "C" {
                       map* pmTmp2=getMap(pmsTmp1->content,"length");
                       int iLen=atoi(pmTmp2->value);
                       json_object *pjoaRes=json_object_new_object();
-                      for(int i/*iCallbackCnt*/=0;i<iLen;i/*iCallbackCnt*/++){
-                        map* pmState=getMapArray(pmsTmp1->content,"state",i/*iCallbackCnt*/);
-                        map* pmUri=getMapArray(pmsTmp1->content,"uri",i/*iCallbackCnt*/);
-                        map* pmSchema=getMapArray(pmsTmp1->content,"schema",i/*iCallbackCnt*/);
-                        map* pmType=getMapArray(pmsTmp1->content,"type",i/*iCallbackCnt*/);
-                        map* pmTitle=getMapArray(pmsTmp1->content,"title",i/*iCallbackCnt*/);
+                      for(int iCallbackCnt=0;iCallbackCnt<iLen;iCallbackCnt++){
+                        map* pmState=getMapArray(pmsTmp1->content,"state",iCallbackCnt);
+                        map* pmUri=getMapArray(pmsTmp1->content,"uri",iCallbackCnt);
+                        map* pmSchema=getMapArray(pmsTmp1->content,"schema",iCallbackCnt);
+                        map* pmType=getMapArray(pmsTmp1->content,"type",iCallbackCnt);
+                        map* pmTitle=getMapArray(pmsTmp1->content,"title",iCallbackCnt);
                         json_object *pjoaSchema=json_object_new_object();
                         if(pmSchema!=NULL)
                           json_object_object_add(pjoaSchema,"$ref",json_object_new_string(pmSchema->value));
@@ -4112,15 +4247,16 @@ extern "C" {
                         json_object_object_add(pjoaPost,"requestBody",pjoaRBody);
                         json_object_object_add(pjoaPost,"responses",pjoaResponse);
                         if(pmName==NULL)
-                          pmName=getMapArray(pmsTmp->content,"operationId",i/*iCallbackCnt*/);
+                          pmName=getMapArray(pmsTmp->content,"operationId",iCallbackCnt);
                         if(pmName!=NULL){
                           char* pcaOperationId=(char*)malloc((strlen(pmState->value)+strlen(pmName->value)+1)*sizeof(char));
                           sprintf(pcaOperationId,"%s%s",pmState->value,pmName->value);
                           json_object_object_add(pjoaPost,"operationId",json_object_new_string(pcaOperationId));
                           free(pcaOperationId);
                         }
-                        else
-                          produceOperationId(pmsConf,pmsTmp1,i/*iCallbackCnt*/,pjoaPost);
+                        else{
+                          produceOperationId(pmsConf,pmsTmp1,iCallbackCnt,pjoaPost);
+                        }
 
                         json_object *pjoaMethod=json_object_new_object();
                         json_object_object_add(pjoaMethod,"post",pjoaPost);
